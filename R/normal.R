@@ -9,7 +9,7 @@ SpSlNormal <- function(y,X,phi,
   z <- rep(0, p)
   sigma2 <- 1
   results <- list()
-  results$z <- list()
+  results$z <- matrix(0,nrow=iters-warmup,ncol=p)
   results$pi <- matrix(0,nrow=iters-warmup,ncol=K+1)
   results$beta <- matrix(0,nrow=iters-warmup,ncol=p)
 
@@ -50,20 +50,20 @@ SpSlNormal <- function(y,X,phi,
       log.prob <- log.prob - max(log.prob)
       prob <- exp(log.prob)/sum(exp(log.prob))
       z[j] <- sample(1:(K+1),size=1,prob=prob)-1
+    }
 
-      if(i > warmup) {
+    if(i > warmup) {
+      beta <- rep(0,p)
+      Xz <- as.matrix(X[,z>0])
+      if(ncol(Xz) > 0) {
+        z.cut <- z[z>0]
+        Psi.inv <- diag(1/phi[z.cut],nrow=length(z.cut))
+        S <- Psi.inv+sigma2^{-1}*(t(Xz)%*%Xz)
+        S.inv <- solve(S)
+        beta.cut <- rmvnorm(n=1,mean=S.inv%*%(t(Xz)%*%y)/sigma2,
+                            sigma=S.inv)
         beta <- rep(0,p)
-        Xz <- as.matrix(X[,z>0])
-        if(ncol(Xz) > 0) {
-          z.cut <- z[z>0]
-          Psi.inv <- diag(1/phi[z.cut],nrow=length(z.cut))
-          S <- Psi.inv+sigma2^{-1}*(t(Xz)%*%Xz)
-          S.inv <- solve(S)
-          beta.cut <- rmvnorm(n=1,mean=S.inv%*%(t(Xz)%*%y)/sigma2,
-                              sigma=S.inv)
-          beta <- rep(0,p)
-          beta[z>0] <- beta.cut
-        }
+        beta[z>0] <- beta.cut
       }
     }
 
@@ -74,7 +74,7 @@ SpSlNormal <- function(y,X,phi,
 
     if(i > warmup) {
       #Save results
-      results$z[[i-warmup]] <- z
+      results$z[i-warmup,] <- z
       results$beta[i-warmup,] <- beta
       results$pi[i-warmup,] <- Pi
     }

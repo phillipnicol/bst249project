@@ -12,7 +12,7 @@ SpSlNLP <- function(y,X,phi,
   z <- rep(0, p)
   sigma2 <- 1
   results <- list()
-  results$z <- list()
+  results$z <- matrix(0,nrow=iters-warmup,ncol=p)
   results$pi <- matrix(0,nrow=iters-warmup,ncol=K+1)
   results$beta <- matrix(0,nrow=iters-warmup,ncol=p)
 
@@ -65,7 +65,7 @@ SpSlNLP <- function(y,X,phi,
         phis <- phi[z.cut]
         val <- LA(Xz,y,phis,sigma2,p)
         beta.cut <- rmvnorm(n=1,mean=val$beta.star,
-                            sigma=val$H)
+                            sigma=solve(val$H))
         beta[z>0] <- beta.cut
       }
     }
@@ -77,7 +77,7 @@ SpSlNLP <- function(y,X,phi,
 
     if(i > warmup) {
       #Save results
-      results$z[[i-warmup]] <- z
+      results$z[i-warmup,] <- z
       results$beta[i-warmup,] <- beta
       results$pi[i-warmup,] <- Pi
     }
@@ -112,6 +112,9 @@ LA.maximizer <- function(Xz,y,phis,sigma2) {
   Lambda <- diag(1/(2*phis),nrow=pt)
   #initialize using ridge
   betat.start <- solve(t(Xz)%*%Xz+Lambda)%*%t(Xz)%*%y
+  ixs <- which(abs(betat.start) < 0.01)
+  betat.start[ixs] <- 0.01
+  #betat.start <- rep(1,pt)
   betat.start <- as.vector(betat.start)
   pt <- ncol(Xz)
   tau <- 1
@@ -123,9 +126,8 @@ LA.maximizer <- function(Xz,y,phis,sigma2) {
 
     #Compute HESSIAN
     H <- -sigma2^{-1}*(t(Xz)%*%Xz)-diag(6*phis/beta^4+1/phis,nrow=pt)
-
-    beta.new <- beta-solve(H)%*%grad
-    beta.new <- as.vector(beta.new)
+    new.diff <- as.vector(solve(H,-grad))
+    beta.new <- new.diff+beta
     tau <- max(abs(beta-beta.new))
     beta <- beta.new
   }
