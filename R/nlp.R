@@ -8,13 +8,23 @@ SpSlNLP <- function(y,X,phi,
 
   K <- length(phi)
   p <- ncol(X)
+  n <- nrow(X)
   a <- rep(1,K+1)
   z <- rep(0, p)
+  Pi <- rep(1,K+1)
+  Pi[1] <- 0.9
+  Pi[2:(K+1)] <- 0.1/K
+  v0 <- 1
+  sigma0 <- 1
   sigma2 <- 1
   results <- list()
   results$z <- matrix(0,nrow=iters-warmup,ncol=p)
   results$pi <- matrix(0,nrow=iters-warmup,ncol=K+1)
   results$beta <- matrix(0,nrow=iters-warmup,ncol=p)
+  results$sigma2 <- rep(0,iters-warmup)
+
+  #Hash table
+  H <- new.env()
 
   cat("Starting sampler ... ... \n")
 
@@ -26,8 +36,6 @@ SpSlNLP <- function(y,X,phi,
       cat("(Sampling) Iteration ", i, "/",iters,"\n")
     }
 
-    Pi <- rdirichlet(n=1, alpha=a)
-
     for(j in 1:p) {
       log.prob <- rep(1,K+1)
       Err <- diag(sigma2,nrow=n)
@@ -36,20 +44,36 @@ SpSlNLP <- function(y,X,phi,
       if(sum(z) == 0) {
         log.prob[1] <- log(Pi[1])+dmvnorm(y,sigma=Err,log=TRUE)
       } else {
-        Xz <- as.matrix(X[,z>0])
-        z.cut <- z[z>0]
-        phis <- phi[z.cut]
-        y.null <- y[z==0]
-        log.prob <- log(Pi[1])+LA(Xz,y,phis,sigma2,p)$la
+        key <- get_key(z)
+        val <- lookup(H,key)
+        if(!is.null(val)) {
+          log.prob[1] <- log(Pi[1])+val
+        } else{
+          Xz <- as.matrix(X[,z>0])
+          z.cut <- z[z>0]
+          phis <- phi[z.cut]
+          y.null <- y[z==0]
+          ML <- LA(Xz,y,phis,sigma2,p)$la
+          log.prob <- log(Pi[1])+ML
+          H[[key]] <- ML
+        }
       }
 
       for(k in 1:K) {
         z[j] <- k
-        Xz <- as.matrix(X[,z>0])
-        z.cut <- z[z>0]
-        phis <- phi[z.cut]
-        y.null <- y[z==0]
-        log.prob[k+1] <- log(Pi[k+1])+LA(Xz,y,phis,sigma2,p)$la
+        key <- get_key(z)
+        val <- lookup(H,key)
+        if(!is.null(val)) {
+          log.prob[k+1] <- log(Pi[k+1])+val
+        } else {
+          Xz <- as.matrix(X[,z>0])
+          z.cut <- z[z>0]
+          phis <- phi[z.cut]
+          y.null <- y[z==0]
+          ML <- LA(Xz,y,phis,sigma2,p)$la
+          log.prob[k+1] <- log(Pi[k+1])+ML
+          H[[key]] <- ML
+        }
       }
 
       log.prob <- log.prob - max(log.prob)
@@ -57,17 +81,15 @@ SpSlNLP <- function(y,X,phi,
       z[j] <- sample(1:(K+1),size=1,prob=prob)-1
     }
 
-    if(i > warmup) {
-      beta <- rep(0,p)
-      Xz <- as.matrix(X[,z>0])
-      if(ncol(Xz) > 0) {
-        z.cut <- z[z>0]
-        phis <- phi[z.cut]
-        val <- LA(Xz,y,phis,sigma2,p)
-        beta.cut <- rmvnorm(n=1,mean=val$beta.star,
+    beta <- rep(0,p)
+    Xz <- as.matrix(X[,z>0])
+    if(ncol(Xz) > 0) {
+      z.cut <- z[z>0]
+      phis <- phi[z.cut]
+      val <- LA(Xz,y,phis,sigma2,p)
+      beta.cut <- rmvnorm(n=1,mean=val$beta.star,
                             sigma=solve(val$H))
-        beta[z>0] <- beta.cut
-      }
+      beta[z>0] <- beta.cut
     }
 
     # Update counts
@@ -75,11 +97,23 @@ SpSlNLP <- function(y,X,phi,
       a[j+1] <- 1+sum(z==j)
     }
 
+    #Draw pi
+    Pi <- rdirichlet(n=1, alpha=a)
+
+    #Update sigma2
+    fitted.mean <- X %*% beta
+    SSR <- sum((y-fitted.mean)^2)
+    shape <- 0.5*(v0+n)
+    rate <- 0.5*(v0*sigma0+SSR)
+    Gam <- rgamma(n=1,shape=shape,rate=rate)
+    sigma2 <- 1/Gam
+
     if(i > warmup) {
       #Save results
       results$z[i-warmup,] <- z
       results$beta[i-warmup,] <- beta
       results$pi[i-warmup,] <- Pi
+      results$sigma2[i-warmup] <- sigma2
     }
   }
 

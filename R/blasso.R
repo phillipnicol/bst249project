@@ -1,6 +1,7 @@
 
 
 #' @importFrom statmod rinvgauss
+#' @importFrom invgamma rinvgamma
 #' @export
 
 Blasso <- function(y,X,iters=2000,warmup=1000) {
