@@ -3,6 +3,7 @@
 ##beta1 the absolute value of each
 #' @importFrom horseshoe horseshoe
 #' @importFrom mltools mcc
+#' @importFrom mvtnorm rmvnorm
 #' @export
 simulateTest <- function(n,p,p1,beta1,phi.nlp,phi.normal) {
   #Number of methods x number of metrics

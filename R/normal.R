@@ -17,6 +17,7 @@ SpSlNormal <- function(y,X,phi,
   results$beta <- matrix(0,nrow=iters-warmup,ncol=p)
   results$sigma2 <- rep(0,iters-warmup)
   sigma2 <- sigma0
+  Pi <- rep(1,K+1)
   Pi[1] <- 0.9
   Pi[2:(K+1)] <- 0.1/K
   #Hash table
