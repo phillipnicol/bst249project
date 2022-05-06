@@ -5,13 +5,18 @@
 #' @importFrom mltools mcc
 #' @importFrom mvtnorm rmvnorm
 #' @export
-simulateTest <- function(n,p,p1,beta1,phi.nlp,phi.normal) {
+simulateTest <- function(n,p,p1,beta1,phi.nlp,phi.normal,rho=0) {
   #Number of methods x number of metrics
   results <- matrix(0,nrow=4,ncol=4)
 
   beta <- rep(0,p)
   beta[1:p1] <- sample(c(-1,1),size=p1,replace=TRUE)*beta1
 
+  if(rho != 0) {
+    X <- exch_x(n,p,sd=1,rho)
+  } else {
+    X <- matrix(rnorm(p*n),nrow=n,ncol=p)
+  }
   X <- matrix(rnorm(p*n),nrow=n,ncol=p)
   y <- X%*%beta+ rnorm(n,sd=1)
   print(dim(X))
@@ -21,7 +26,7 @@ simulateTest <- function(n,p,p1,beta1,phi.nlp,phi.normal) {
   X <- scale(X,scale=TRUE)
 
   out.nlp <- SpSlNLP(y=y,X=X,phi=phi.nlp,warmup=500,iters=1000)
-  out.norm <- SpSlNormal(y=y,X=X,phi=phi.normal,warmup=500,iters=1000)
+  out.norm <- SpSlNormal(y=y,X=X,phi=phi.normal,warmup=250,iters=500)
   out.bl <- Blasso(y=y,X=X,warmup=1000,iters=2000)
   out.horse = horseshoe::horseshoe(y,X,method.tau = "halfCauchy",method.sigma = "fixed",
                                    nmc=2000,burn=1000)
@@ -219,6 +224,79 @@ FullSimulate1 <- function(reps,n,p,phi.nlp,phi.normal,beta1) {
 
 
 
+#' @export
+FullSimulate2 <- function(reps,n,p,phi.nlp,phi.normal,beta1) {
+  #Number of non-nulls
+  p1 <- 30
+  nalg <- 4
+  rho <- c(0.3,0.5,0.7)
+
+  data <- matrix(0,nrow=0,ncol=5)
+  for(i in 1:length(rho)) {
+    mcc <- matrix(0,nrow=nalg,ncol=reps)
+    fn <- matrix(0,nrow=nalg,ncol=reps)
+    rmse <- matrix(0,nrow=nalg,ncol=reps)
+    angle <- matrix(0,nrow=nalg,ncol=reps)
+    for(j in 1:reps) {
+      results <- simulateTest(n,p,p1=30,beta1,phi.nlp,phi.normal,rho=rho[i])
+      rmse[,j] <- results[,1]
+      angle[,j] <- results[,2]
+      mcc[,j] <- results[,3]
+      fn[,j] <- results[,4]
+    }
+
+    data <- rbind(data,c(rowMeans(rmse)[1],"SpSl-Normal",
+                         p1[i],sd=sd(rmse[1,]),"RMSE"))
+    data <- rbind(data,c(rowMeans(angle)[1],"SpSl-Normal",
+                         p1[i],sd=sd(angle[1,]),"Cosine"))
+    data <- rbind(data,c(rowMeans(mcc)[1],"SpSl-Normal",
+                         p1[i],sd=sd(mcc[1,]),"MCC"))
+    data <- rbind(data,c(rowMeans(fn)[1],"SpSl-Normal",
+                         p1[i],sd=sd(fn[1,]),"FN"))
+
+    data <- rbind(data,c(rowMeans(rmse)[2],"SpSl-NLP",
+                         p1[i],sd=sd(rmse[2,]),"RMSE"))
+    data <- rbind(data,c(rowMeans(angle)[2],"SpSl-NLP",
+                         p1[i],sd=sd(angle[2,]),"Cosine"))
+    data <- rbind(data,c(rowMeans(mcc)[2],"SpSl-NLP",
+                         p1[i],sd=sd(mcc[2,]),"MCC"))
+    data <- rbind(data,c(rowMeans(fn)[2],"SpSl-NLP",
+                         p1[i],sd=sd(fn[2,]),"FN"))
+
+    data <- rbind(data,c(rowMeans(rmse)[3],"BL",
+                         p1[i],sd=sd(rmse[3,]),"RMSE"))
+    data <- rbind(data,c(rowMeans(angle)[3],"BL",
+                         p1[i],sd=sd(angle[3,]),"Cosine"))
+    data <- rbind(data,c(rowMeans(mcc)[3],"BL",
+                         p1[i],sd=sd(mcc[3,]),"MCC"))
+    data <- rbind(data,c(rowMeans(fn)[3],"BL",
+                         p1[i],sd=sd(fn[3,]),"FN"))
+
+    data <- rbind(data,c(rowMeans(rmse)[4],"HS",
+                         p1[i],sd=sd(rmse[4,]),"RMSE"))
+    data <- rbind(data,c(rowMeans(angle)[4],"HS",
+                         p1[i],sd=sd(angle[4,]),"Cosine"))
+    data <- rbind(data,c(rowMeans(mcc)[4],"HS",
+                         p1[i],sd=sd(mcc[4,]),"MCC"))
+    data <- rbind(data,c(rowMeans(fn)[4],"HS",
+                         p1[i],sd=sd(fn[4,]),"FN"))
+  }
+
+
+  return(data)
+}
+
+
+
+
+
+
+
+
+
+
+
+
 makePlot <- function(data) {
   data<-data.frame(metric=as.numeric(data[,1]),
                   Algorithm=data[,2],
@@ -238,6 +316,13 @@ makePlot <- function(data) {
   p <- p + facet_grid(type ~ dimension)
 }
 
+
+exch_x <- function(n,p,sd,rho){
+  rho_vec = rep(rho,p)
+  corr_mat = (1-rho)*diag(p)+rho_vec%*%t(rep(1,p))
+  X = mvrnorm(n,rep(0,p),sd^2*corr_mat)
+  return(X)
+}
 
 
 
