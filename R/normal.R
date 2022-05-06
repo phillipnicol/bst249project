@@ -12,7 +12,6 @@ SpSlNormal <- function(y,X,phi,
   results$z <- matrix(0,nrow=iters-warmup,ncol=p)
   results$pi <- matrix(0,nrow=iters-warmup,ncol=K+1)
   results$beta <- matrix(0,nrow=iters-warmup,ncol=p)
-  sigma2 <- sigma0
   Pi <- rep(1,K+1)
   Pi[1] <- 0.9
   Pi[2:(K+1)] <- 0.1/K
