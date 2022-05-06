@@ -25,11 +25,11 @@ simulateTest <- function(n,p,p1,beta1,phi.nlp,phi.normal,rho=0) {
   y <- y-mean(y)
   X <- scale(X,scale=TRUE)
 
-  out.nlp <- SpSlNLP(y=y,X=X,phi=phi.nlp,warmup=500,iters=1000)
-  out.norm <- SpSlNormal(y=y,X=X,phi=phi.normal,warmup=250,iters=500)
-  out.bl <- Blasso(y=y,X=X,warmup=1000,iters=2000)
+  out.nlp <- SpSlNLP(y=y,X=X,phi=phi.nlp,warmup=5,iters=10)
+  out.norm <- SpSlNormal(y=y,X=X,phi=phi.normal,warmup=5,iters=10)
+  out.bl <- Blasso(y=y,X=X,warmup=5,iters=10)
   out.horse = horseshoe::horseshoe(y,X,method.tau = "halfCauchy",method.sigma = "fixed",
-                                   nmc=2000,burn=1000)
+                                   nmc=5,burn=5)
 
   #Analyze out.nlp
   pm_beta <- colMeans(out.nlp$beta)
@@ -91,6 +91,7 @@ simulateTest <- function(n,p,p1,beta1,phi.nlp,phi.normal,rho=0) {
   mcc <- mcc(preds=z,actual=ifelse(beta != 0,1,0))
   results[4,] <- c(rmse,angle,mcc,sum(z==1 & beta != 0)/sum(beta != 0))
 
+  results[is.na(results)] <- 0
   return(results)
 }
 
@@ -120,22 +121,22 @@ FullSimulate1 <- function(reps,n,p,phi.nlp,phi.normal,beta1) {
       fn[,j] <- results[,4]
     }
 
-    data <- rbind(data,c(rowMeans(rmse)[1],"SpSl-Normal",
+    data <- rbind(data,c(rowMeans(rmse)[1],"SpSl-NLP",
                          p1[i],sd=sd(rmse[1,]),"RMSE"))
-    data <- rbind(data,c(rowMeans(angle)[1],"SpSl-Normal",
+    data <- rbind(data,c(rowMeans(angle)[1],"SpSl-NLP",
                          p1[i],sd=sd(angle[1,]),"Cosine"))
-    data <- rbind(data,c(rowMeans(mcc)[1],"SpSl-Normal",
+    data <- rbind(data,c(rowMeans(mcc)[1],"SpSl-NLP",
                          p1[i],sd=sd(mcc[1,]),"MCC"))
-    data <- rbind(data,c(rowMeans(fn)[1],"SpSl-Normal",
+    data <- rbind(data,c(rowMeans(fn)[1],"SpSl-NLP",
                          p1[i],sd=sd(fn[1,]),"FN"))
 
-    data <- rbind(data,c(rowMeans(rmse)[2],"SpSl-NLP",
+    data <- rbind(data,c(rowMeans(rmse)[2],"SpSl-Normal",
                          p1[i],sd=sd(rmse[2,]),"RMSE"))
-    data <- rbind(data,c(rowMeans(angle)[2],"SpSl-NLP",
+    data <- rbind(data,c(rowMeans(angle)[2],"SpSl-Normal",
                          p1[i],sd=sd(angle[2,]),"Cosine"))
-    data <- rbind(data,c(rowMeans(mcc)[2],"SpSl-NLP",
+    data <- rbind(data,c(rowMeans(mcc)[2],"SpSl-Normal",
                          p1[i],sd=sd(mcc[2,]),"MCC"))
-    data <- rbind(data,c(rowMeans(fn)[2],"SpSl-NLP",
+    data <- rbind(data,c(rowMeans(fn)[2],"SpSl-Normal",
                          p1[i],sd=sd(fn[2,]),"FN"))
 
     data <- rbind(data,c(rowMeans(rmse)[3],"BL",
@@ -178,22 +179,22 @@ FullSimulate1 <- function(reps,n,p,phi.nlp,phi.normal,beta1) {
       fn[,j] <- results[,4]
     }
 
-    data <- rbind(data,c(rowMeans(rmse)[1],"SpSl-Normal",
+    data <- rbind(data,c(rowMeans(rmse)[1],"SpSl-NLP",
                          p1[i],sd=sd(rmse[1,]),"RMSE"))
-    data <- rbind(data,c(rowMeans(angle)[1],"SpSl-Normal",
+    data <- rbind(data,c(rowMeans(angle)[1],"SpSl-NLP",
                          p1[i],sd=sd(angle[1,]),"Cosine"))
-    data <- rbind(data,c(rowMeans(mcc)[1],"SpSl-Normal",
+    data <- rbind(data,c(rowMeans(mcc)[1],"SpSl-NLP",
                          p1[i],sd=sd(mcc[1,]),"MCC"))
-    data <- rbind(data,c(rowMeans(fn)[1],"SpSl-Normal",
+    data <- rbind(data,c(rowMeans(fn)[1],"SpSl-NLP",
                          p1[i],sd=sd(fn[1,]),"FN"))
 
-    data <- rbind(data,c(rowMeans(rmse)[2],"SpSl-NLP",
+    data <- rbind(data,c(rowMeans(rmse)[2],"SpSl-Normal",
                          p1[i],sd=sd(rmse[2,]),"RMSE"))
-    data <- rbind(data,c(rowMeans(angle)[2],"SpSl-NLP",
+    data <- rbind(data,c(rowMeans(angle)[2],"SpSl-Normal",
                          p1[i],sd=sd(angle[2,]),"Cosine"))
-    data <- rbind(data,c(rowMeans(mcc)[2],"SpSl-NLP",
+    data <- rbind(data,c(rowMeans(mcc)[2],"SpSl-Normal",
                          p1[i],sd=sd(mcc[2,]),"MCC"))
-    data <- rbind(data,c(rowMeans(fn)[2],"SpSl-NLP",
+    data <- rbind(data,c(rowMeans(fn)[2],"SpSl-Normal",
                          p1[i],sd=sd(fn[2,]),"FN"))
 
     data <- rbind(data,c(rowMeans(rmse)[3],"BL",
@@ -313,7 +314,7 @@ makePlot <- function(data) {
   p <- p + theme_linedraw()
   p <- p + xlab("# of Non-Nulls")
   p <- p + ylab("")
-  p <- p + facet_grid(type ~ dimension)
+  p <- p + facet_grid(type ~ dimension,scales="free")
 }
 
 

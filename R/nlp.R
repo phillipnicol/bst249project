@@ -4,7 +4,7 @@
 #' @importFrom MCMCpack rdirichlet
 #' @export
 SpSlNLP <- function(y,X,phi,
-                       warmup,iters) {
+                       warmup,iters,sigma2=1) {
 
   K <- length(phi)
   p <- ncol(X)
@@ -15,20 +15,21 @@ SpSlNLP <- function(y,X,phi,
   Pi[1] <- 0.9
   Pi[2:(K+1)] <- 0.1/K
   v0 <- 1
+  beta <- as.vector(coef(glmnet(X,y, intercept =FALSE),s=0.1))[2:(p+1)]
+  resid <- y - X%*%beta
+  sigma2 <- sum(resid^2)/n
   sigma0 <- 1
-  sigma2 <- 1
   results <- list()
   results$z <- matrix(0,nrow=iters-warmup,ncol=p)
   results$pi <- matrix(0,nrow=iters-warmup,ncol=K+1)
   results$beta <- matrix(0,nrow=iters-warmup,ncol=p)
-  results$sigma2 <- rep(0,iters-warmup)
 
   #Hash table
   H <- new.env()
 
   cat("Starting sampler ... ... \n")
 
-
+  Err <- diag(sigma2,nrow=n)
   for(i in 1:iters) {
     if(i < warmup) {
       cat("(Warmup) Iteration ", i, "/",iters,"\n")
@@ -38,7 +39,6 @@ SpSlNLP <- function(y,X,phi,
 
     for(j in 1:p) {
       log.prob <- rep(1,K+1)
-      Err <- diag(sigma2,nrow=n)
       #Do p(z_j = 0)
       z[j] <- 0
       if(sum(z) == 0) {
@@ -54,7 +54,7 @@ SpSlNLP <- function(y,X,phi,
           phis <- phi[z.cut]
           y.null <- y[z==0]
           ML <- LA(Xz,y,phis,sigma2,p)$la
-          log.prob <- log(Pi[1])+ML
+          log.prob[1] <- log(Pi[1])+ML
           H[[key]] <- ML
         }
       }
@@ -81,15 +81,17 @@ SpSlNLP <- function(y,X,phi,
       z[j] <- sample(1:(K+1),size=1,prob=prob)-1
     }
 
-    beta <- rep(0,p)
-    Xz <- as.matrix(X[,z>0])
-    if(ncol(Xz) > 0) {
-      z.cut <- z[z>0]
-      phis <- phi[z.cut]
-      val <- LA(Xz,y,phis,sigma2,p)
-      beta.cut <- rmvnorm(n=1,mean=val$beta.star,
+    if(i > warmup) {
+      beta <- rep(0,p)
+      Xz <- as.matrix(X[,z>0])
+      if(ncol(Xz) > 0) {
+        z.cut <- z[z>0]
+        phis <- phi[z.cut]
+        val <- LA(Xz,y,phis,sigma2,p)
+        beta.cut <- rmvnorm(n=1,mean=val$beta.star,
                             sigma=solve(val$H))
-      beta[z>0] <- beta.cut
+        beta[z>0] <- beta.cut
+      }
     }
 
     # Update counts
@@ -100,20 +102,12 @@ SpSlNLP <- function(y,X,phi,
     #Draw pi
     Pi <- rdirichlet(n=1, alpha=a)
 
-    #Update sigma2
-    fitted.mean <- X %*% beta
-    SSR <- sum((y-fitted.mean)^2)
-    shape <- 0.5*(v0+n)
-    rate <- 0.5*(v0*sigma0+SSR)
-    Gam <- rgamma(n=1,shape=shape,rate=rate)
-    sigma2 <- 1/Gam
 
     if(i > warmup) {
       #Save results
       results$z[i-warmup,] <- z
       results$beta[i-warmup,] <- beta
       results$pi[i-warmup,] <- Pi
-      results$sigma2[i-warmup] <- sigma2
     }
   }
 
