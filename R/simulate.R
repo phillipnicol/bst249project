@@ -25,11 +25,11 @@ simulateTest <- function(n,p,p1,beta1,phi.nlp,phi.normal,rho=0) {
   y <- y-mean(y)
   X <- scale(X,scale=TRUE)
 
-  out.nlp <- SpSlNLP(y=y,X=X,phi=phi.nlp,warmup=5,iters=10)
-  out.norm <- SpSlNormal(y=y,X=X,phi=phi.normal,warmup=5,iters=10)
-  out.bl <- Blasso(y=y,X=X,warmup=5,iters=10)
+  out.nlp <- SpSlNLP(y=y,X=X,phi=phi.nlp,warmup=500,iters=1000)
+  out.norm <- SpSlNormal(y=y,X=X,phi=phi.normal,warmup=250,iters=500)
+  out.bl <- Blasso(y=y,X=X,warmup=1000,iters=2000)
   out.horse = horseshoe::horseshoe(y,X,method.tau = "halfCauchy",method.sigma = "fixed",
-                                   nmc=5,burn=5)
+                                   nmc=2000,burn=1000)
 
   #Analyze out.nlp
   pm_beta <- colMeans(out.nlp$beta)
@@ -109,6 +109,7 @@ FullSimulate1 <- function(reps,n,p,phi.nlp,phi.normal,beta1) {
 
   data <- matrix(0,nrow=0,ncol=5)
   for(i in 1:length(p1)) {
+    print(i)
     mcc <- matrix(0,nrow=nalg,ncol=reps)
     fn <- matrix(0,nrow=nalg,ncol=reps)
     rmse <- matrix(0,nrow=nalg,ncol=reps)
@@ -167,6 +168,7 @@ FullSimulate1 <- function(reps,n,p,phi.nlp,phi.normal,beta1) {
 
   data <- matrix(0,nrow=0,ncol=5)
   for(i in 1:length(p1)) {
+    print(i)
     mcc <- matrix(0,nrow=nalg,ncol=reps)
     fn <- matrix(0,nrow=nalg,ncol=reps)
     rmse <- matrix(0,nrow=nalg,ncol=reps)
@@ -228,7 +230,7 @@ FullSimulate1 <- function(reps,n,p,phi.nlp,phi.normal,beta1) {
 #' @export
 FullSimulate2 <- function(reps,n,p,phi.nlp,phi.normal,beta1) {
   #Number of non-nulls
-  p1 <- 30
+  p1 <- 20
   nalg <- 4
   rho <- c(0.3,0.5,0.7)
 
@@ -239,29 +241,29 @@ FullSimulate2 <- function(reps,n,p,phi.nlp,phi.normal,beta1) {
     rmse <- matrix(0,nrow=nalg,ncol=reps)
     angle <- matrix(0,nrow=nalg,ncol=reps)
     for(j in 1:reps) {
-      results <- simulateTest(n,p,p1=30,beta1,phi.nlp,phi.normal,rho=rho[i])
+      results <- simulateTest(n,p,p1=p1,beta1,phi.nlp,phi.normal,rho=rho[i])
       rmse[,j] <- results[,1]
       angle[,j] <- results[,2]
       mcc[,j] <- results[,3]
       fn[,j] <- results[,4]
     }
 
-    data <- rbind(data,c(rowMeans(rmse)[1],"SpSl-Normal",
+    data <- rbind(data,c(rowMeans(rmse)[1],"SpSl-NLP",
                          p1[i],sd=sd(rmse[1,]),"RMSE"))
-    data <- rbind(data,c(rowMeans(angle)[1],"SpSl-Normal",
+    data <- rbind(data,c(rowMeans(angle)[1],"SpSl-NLP",
                          p1[i],sd=sd(angle[1,]),"Cosine"))
-    data <- rbind(data,c(rowMeans(mcc)[1],"SpSl-Normal",
+    data <- rbind(data,c(rowMeans(mcc)[1],"SpSl-NLP",
                          p1[i],sd=sd(mcc[1,]),"MCC"))
-    data <- rbind(data,c(rowMeans(fn)[1],"SpSl-Normal",
+    data <- rbind(data,c(rowMeans(fn)[1],"SpSl-NLP",
                          p1[i],sd=sd(fn[1,]),"FN"))
 
-    data <- rbind(data,c(rowMeans(rmse)[2],"SpSl-NLP",
+    data <- rbind(data,c(rowMeans(rmse)[2],"SpSl-Normal",
                          p1[i],sd=sd(rmse[2,]),"RMSE"))
-    data <- rbind(data,c(rowMeans(angle)[2],"SpSl-NLP",
+    data <- rbind(data,c(rowMeans(angle)[2],"SpSl-Normal",
                          p1[i],sd=sd(angle[2,]),"Cosine"))
-    data <- rbind(data,c(rowMeans(mcc)[2],"SpSl-NLP",
+    data <- rbind(data,c(rowMeans(mcc)[2],"SpSl-Normal",
                          p1[i],sd=sd(mcc[2,]),"MCC"))
-    data <- rbind(data,c(rowMeans(fn)[2],"SpSl-NLP",
+    data <- rbind(data,c(rowMeans(fn)[2],"SpSl-Normal",
                          p1[i],sd=sd(fn[2,]),"FN"))
 
     data <- rbind(data,c(rowMeans(rmse)[3],"BL",

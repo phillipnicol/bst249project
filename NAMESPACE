@@ -2,6 +2,7 @@
 
 export(Blasso)
 export(FullSimulate1)
+export(FullSimulate2)
 export(SpSlNLP)
 export(SpSlNormal)
 export(simulateTest)
