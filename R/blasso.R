@@ -91,6 +91,7 @@ lambda_init <- function(y,X){
   if(n>p){
     lm = lm(y~X)
     beta = lm$coefficients
+    beta[is.na(beta)] <- 0
     sd = sd(lm$residuals)
     lambda = p*sd/sum(abs(beta))
   }

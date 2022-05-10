@@ -17,7 +17,6 @@ simulateTest <- function(n,p,p1,beta1,phi.nlp,phi.normal,rho=0) {
   } else {
     X <- matrix(rnorm(p*n),nrow=n,ncol=p)
   }
-  X <- matrix(rnorm(p*n),nrow=n,ncol=p)
   y <- X%*%beta+ rnorm(n,sd=1)
   print(dim(X))
   y <- as.vector(y)
@@ -52,7 +51,7 @@ simulateTest <- function(n,p,p1,beta1,phi.nlp,phi.normal,rho=0) {
 
   results[2,1] <- rmse; results[2,2] <- angle
   results[2,3] <-  mean(apply(out.norm$z,1,function(x) mcc(preds=ifelse(x>0,1,0),actual=ifelse(beta!=0,1,0))))
-  results[2,4] <- mean(apply(out.nlp$z,1,function(x) {
+  results[2,4] <- mean(apply(out.norm$z,1,function(x) {
     sum(x == 1 & beta != 0)/sum(beta!=0)
   }))#FN RATE
 
@@ -302,16 +301,23 @@ FullSimulate2 <- function(reps,n,p,phi.nlp,phi.normal,beta1) {
 
 makePlot <- function(data) {
   data<-data.frame(metric=as.numeric(data[,1]),
-                  Algorithm=data[,2],
+                  Method=data[,2],
                   S=as.numeric(data[,3]),
                   sd=as.numeric(data[,4]),
                   type=data[,5],
                   dimension=data[,6])
 
-  p <- ggplot(data=data,aes(x=S,y=metric,color=Algorithm,
+  data$dimension <- factor(data$dimension,levels=c("Low dimensional","High dimensional"))
+  data$type <- factor(data$type,levels=c("RMSE","Cosine","MCC","FN"))
+
+  ixs <- which(data$type=="FN" & data$Method=="SpSl-Normal")
+  data <- data[-ixs,]
+  levels(data$type)[4] <- "TPR"
+  p <- ggplot(data=data,aes(x=S,y=metric,color=Method,
                             ymin=metric-sd,ymax=metric+sd))
   p <- p + geom_point()
   p <- p + geom_line()
+  #p <- p + geom_boxplot()
   p <- p + geom_errorbar(width=0.1)
   p <- p + theme_linedraw()
   p <- p + xlab("# of Non-Nulls")
@@ -319,6 +325,35 @@ makePlot <- function(data) {
   p <- p + facet_grid(type ~ dimension,scales="free")
 }
 
+
+makePlot2 <- function(data) {
+  data<-data.frame(metric=as.numeric(data[,1]),
+                   Method=data[,2],
+                   rho=c(rep(0.3,16),rep(0.5,16),
+                         rep(0.7,16)),
+                   type=data[,5],
+                   sd=as.numeric(data[,4]))
+
+  ixs <- which(data$type=="FN" & data$Method=="SpSl-Normal")
+  data <- data[-ixs,]
+
+  data$type <- factor(data$type,levels=c("RMSE","Cosine","MCC","FN"))
+  levels(data$type)[4] <- "TPR"
+
+  p <- ggplot(data=data,aes(x=rho,y=metric,color=Method,
+                            ymin=metric-sd,ymax=metric+sd))
+  #p <- p + geom_bar(stat="identity",position="dodge",width=0.1)
+  #p <- p + geom_point()
+  #p <- p + geom_jitter()
+  #p <- p + geom_line()
+  #p <- p + geom_errorbar(width=0)
+  p <- p + geom_point(position=position_dodge(width=0.1))
+  p <- p + geom_errorbar(width=0.1,position=position_dodge(width=0.1))
+  p <- p + theme_linedraw()
+  p <- p + xlab(expression(rho))
+  p <- p + ylab("")
+  p <- p + facet_grid(type~.,scales="free")
+}
 
 exch_x <- function(n,p,sd,rho){
   rho_vec = rep(rho,p)
