@@ -323,7 +323,6 @@ makePlot <- function(data) {
   p <- p + xlab("# of Non-Nulls")
   p <- p + ylab("")
   p <- p + facet_grid(type ~ dimension,scales="free")
-  p <- p + ggtitle("Uncorrelated predictors, effect magnitude 0.5")
 }
 
 
@@ -341,19 +340,19 @@ makePlot2 <- function(data) {
   data$type <- factor(data$type,levels=c("RMSE","Cosine","MCC","FN"))
   levels(data$type)[4] <- "TPR"
 
-  p <- ggplot(data=data,aes(x=rho,y=metric,color=Method))
+  p <- ggplot(data=data,aes(x=rho,y=metric,color=Method,
+                            ymax=metric+sd,ymin=metric-sd))
   #p <- p + geom_bar(stat="identity",position="dodge",width=0.1)
   p <- p + geom_point()
   #p <- p + geom_jitter()
   p <- p + geom_line()
-  #p <- p + geom_errorbar(width=0)
+  p <- p + geom_errorbar(width=0)
   #p <- p + geom_point(position=position_dodge(width=0.1))
   #p <- p + geom_errorbar(width=0.1,position=position_dodge(width=0.1))
   p <- p + theme_linedraw()
   p <- p + xlab(expression(rho))
   p <- p + ylab("")
   p <- p + facet_grid(type~.,scales="free")
-  p <- p + ggtitle("Correlated predictors, effect magnitude 0.25")
 }
 
 exch_x <- function(n,p,sd,rho){
